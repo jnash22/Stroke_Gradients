@@ -206,8 +206,8 @@ cols_with_ones = (Salvaged_atlas == 1).any(axis=0)
 
 #Load Sample Data
 Directory_data = '/Users/joe/Cook Share Dropbox/Joseph Nashed/Coding_NC/Sample_data/'
-pre_files = ['Pre_0','Pre_1','Pre_2','Pre_3','Pre_4','Pre_5']
-post_files = ['Post_0','Post_1','Post_2','Post_3','Post_4','Post_5']
+pre_files = ['Pre_0','Pre_1','Pre_2','Pre_3']
+post_files = ['Post_0','Post_1','Post_2','Post_3']
 
 Pre_data = [pd.read_csv(os.path.join(Directory_data,i+'.csv')) for i in pre_files]
 Post_data = [pd.read_csv(os.path.join(Directory_data,i+'.csv')) for i in post_files]
@@ -312,7 +312,8 @@ lh_vtk = read_surface(lh)
 rh_vtk = read_surface(rh)
 
 label_text = ['Pre-1','Post-1','Pre-2','Post-2','Pre-3','Post-3']
-save_path_fig = '/Users/joe/Cook Share Dropbox/Joseph Nashed/Coding_NC/Figs/'
+# save_path_fig = '/Users/joe/Cook Share Dropbox/Joseph Nashed/Coding_NC/Figs/'
+save_path_fig = '/Users/josephnashed/Documents/Github_repository/Stroke_Gradients/Figs_new/'
 plot_hemispheres(lh_vtk, rh_vtk, array_name=stacked_mat1, size=(800, 800),
                 cmap='jet',zoom = 1.25,layout_style = 'row',color_bar=True, color_range=(-1.25, 1.25), screenshot=True,background=(1,1,1), label_text=label_text, transparent_bg =False,filename=save_path_fig+'_'+appr+'_pre_post_jet.png')
 
@@ -451,19 +452,77 @@ fig.savefig(save_path_fig+'T_ecc_viridis_'+appr+'.png')
 # ###################################################### Behavioural Analysis #############################################
 # ###################################################### Behavioural Analysis #############################################
 # ###################################################### Behavioural Analysis #############################################
-Behaviour_path = '/Users/joe/Cook Share Dropbox/Joseph Nashed/Coding_NC/Sample_data/NHPSS_test.csv' ###### new behav path
+# Behaviour_path = '/Users/joe/Cook Share Dropbox/Joseph Nashed/Coding_NC/Sample_data/NHPSS_test.csv' ###### new behav path
+Behaviour_path = '/Users/josephnashed/Documents/Github_repository/Stroke_Gradients/Sample_data/FINAL_NHPSS.csv'
 behav = pd.read_csv(Behaviour_path)
 subs = behav['Subj'].values
 nhpss = behav['NHPSS-Final'].values
 
+
+import skfda
+from skfda.preprocessing.dim_reduction import FPCA
+from skfda.exploratory.visualization import FPCAPlot
+from skfda.representation.basis import (
+    BSplineBasis,
+    FourierBasis,
+    MonomialBasis,
+)
+from skfda.misc.regularization import L2Regularization
+from skfda.misc.operators import LinearDifferentialOperator
+
+fd = skfda.FDataGrid(
+    data_matrix=behav['NHPSS-Final'].values,
+    grid_points=behav['NHPSS-Final'].columns.values,
+)
+
+fpca_discretized = FPCA(n_components=1)
+fpca_discretized.fit(fd)
+
+
+basis1 = 8
+order1 = 4
+
+basis = skfda.representation.basis.BSplineBasis(n_basis=basis1, order=order1)
+basis_fd = fd.to_basis(basis)
+
+fpca = FPCA(n_components=1,
+            components_basis=skfda.representation.basis.BSplineBasis(n_basis=basis1, order=order1), 
+            regularization=L2Regularization(LinearDifferentialOperator(2)))
+scores = fpca.fit_transform(basis_fd)
+
+new_fpca = fpca.fit(basis_fd)
+
+
+####################### FPCAPLOT ########################
+####################### FPCAPLOT ########################
+####################### FPCAPLOT ########################
+####################### FPCAPLOT ########################
+fig, ax = plt.subplots(figsize=(10, 5))
+for fact in range(20,200,20):
+    basis_fd.dataset_name = None #['30','40']
+    fpca_plot = FPCAPlot(
+        basis_fd.mean(),
+        fpca.components_,
+        factor=fact,
+        axes = ax,
+    ).plot()
+ax.set_ylim([0,35])
+fig.savefig(save_path_fig+'ALL_NHPSS_DATA_FPCA'+'.eps')
+fig.savefig(save_path_fig+'ALL_NHPSS_DATA_FPCA'+'.png')
+plt.close('all')
+
+
 #### median split
-split_val = np.median(nhpss)
+split_val = np.median(scipy.stats.zscore(scores))
 # group positions
-good_group = np.where(nhpss<split_val)[0]
-poor_group = np.where(nhpss>=split_val)[0]
+good_group = np.where(scipy.stats.zscore(scores)<split_val_fpca)[0]
+poor_group = np.where(scipy.stats.zscore(scores)>=split_val_fpca)[0]
 # group scores
-good_scores = nhpss[good_group]
-poor_scores = nhpss[poor_group]
+# good_scores = nhpss[good_group]
+# poor_scores = nhpss[poor_group]
+good_scores = scores[good_group]
+poor_scores = scores[poor_group]
+
 # ###################################################### Behavioural Analysis #############################################
 # ###################################################### Behavioural Analysis #############################################
 # ###################################################### Behavioural Analysis #############################################
